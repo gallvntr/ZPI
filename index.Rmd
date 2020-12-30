@@ -1,0 +1,533 @@
+---
+title: "Choose Your Own Zombie Preparedness Index"
+author: "Mark Gallivan"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    theme: simplex
+    vertical_layout: scroll
+runtime: shiny
+---
+
+<style type="text/css"> .sidebar { overflow: auto; } </style>
+
+```{r setup, include=FALSE}
+library(dygraphs)
+library(shiny)
+library(magrittr)
+library(data.table)
+library(ggplot2)
+library(shinydashboard)
+library(plotly)
+library(DT)
+library(bit64)
+library(flexdashboard)
+library(shiny)
+
+#rsconnect::setAccountInfo(name='gallvntr',
+#                          token='E46897FA6F89EA455B242C8855CD1BB7',
+#                          secret='3tgzWI1IOgkwq59zjeYIujVTAV9IPYStUn6AfsbV')
+
+#library("rsconnect")
+#rsconnect::deployApp('/Users/markgallivan/Documents/shinyapps/zpi/', appName = "ZombiePreparednessIndex")
+
+#load("/home/mgallivan/shiny/zpi/data/finalDat.rda")
+#zpiFinal <- fread("/Users/markgallivan/Documents/shinyapps/zpi/zpiFinal.csv",na.strings = "")
+#iso3iso2 <- fread("/Users/markgallivan/Documents/shinyapps/zpi/ISO3ISO2.csv", na.strings = "")
+#load("/Users/markgallivan/Documents/shinyapps/zpi/NEUMappings.rda")
+zpiFinal <- fread("zpiFinal.csv",na.strings = "")
+iso3iso2 <- fread("ISO3ISO2.csv", na.strings = "")
+load("NEUMappings.rda")
+
+options(stringsAsFactors = FALSE, scipen = 999)
+
+# black boundaries
+l <- list(color = toRGB("black"), width = 0.5)
+
+
+# specify map projection/options
+g <- list(
+  showframe = FALSE,
+  showcoastlines = FALSE,
+  projection = list(type = 'Mercator')
+)
+
+standardize <- function(x) { ((x - min(x))/(max(x) - min(x))) }
+
+```
+
+
+
+
+
+Inputs {.sidebar}
+=====================================
+
+### Sub-index Score Inputs {data-height=45}
+
+```{r}
+numericInput(inputId = "defense", label =  "Defense", min = 0, max = 1, step = 0.025, value = 0.3, width = '50%')
+
+numericInput(inputId = "isolation", label =  "Isolation", min = 0, max = 1, step = 0.025, value = 0.3, width = '50%')
+
+numericInput(inputId = "society", label =  "Society", min = 0, max = 1, step = 0.025, value = 0.15, width = '50%')
+
+numericInput(inputId = "health", label =  "Health", min = 0, max = 1, step = 0.025, value = 0.15, width = '50%')
+
+numericInput(inputId = "resources", label =  "Resources", min = 0, max = 1, step = 0.025, value = 0.1, width = '50%')
+
+```
+
+## Sub-indicator Inputs
+
+### Defense Inputs  {data-height=75}
+```{r}
+# What table are you interested in?
+numericInput(inputId = "defSpending", label =  "Defense spending per capita", min = 0, max = 1, step = 0.025, value = 0.15, width = '50%')
+numericInput(inputId = "defProfMilt", label =  "Prof military per capita", min = 0, max = 1, step = 0.025, value = 0.3, width = '50%')
+numericInput(inputId = "defArms", label =  "Small arms per capita", min = 0, max = 1, step =  0.025, value = 0.2, width = '50%')
+numericInput(inputId = "defPop", label =  "Population % fighting age", min = 0, max = 1, step = 0.025, value = 0.3, width = '50%')
+numericInput(inputId = "defOlympics", label =  "Number of olympic medals for Archery, Shooting, Taekwondo", min = 0, max = 1, step = 0.025, value = 0.05, width = '50%')
+
+```
+
+### Isolation Inputs  {data-height=75}
+
+```{r}
+# What table are you interested in?
+numericInput(inputId = "isoTerrain", label =  "Terrain ruggedness", min = 0, max = 1, step = 0.025, value = 0.15, width = '50%')
+numericInput(inputId = "isoIndex", label =  "Isolation index", min = 0, max = 1, step = 0.025, value = 0.2, width = '50%')
+numericInput(inputId = "isoPop", label =  "Population density", min = 0, max = 1, step =  0.025, value = 0.5, width = '50%')
+numericInput(inputId = "isoManu", label =  "Manufacturing % GDP", min = 0, max = 1, step = 0.025, value = 0.15, width = '50%')
+
+```
+
+### Health Inputs  {data-height=75}
+
+```{r}
+# What table are you interested in?
+numericInput(inputId = "healthFitness", label =  "Physical fitness", min = 0, max = 1, step = 0.025, value = 0.3, width = '50%')
+numericInput(inputId = "healthDev", label =  "Health development indicator", min = 0, max = 1, step = 0.025, value = 0.3, width = '50%')
+numericInput(inputId = "healthSpend", label =  "Healthcare spending per capita", min = 0, max = 1, step =  0.025, value = 0.1, width = '50%')
+numericInput(inputId = "healthEdu", label =  "Primary education completation %", min = 0, max = 1, step = 0.025, value = 0.1, width = '50%')
+numericInput(inputId = "healthDoc", label =  "Doctors per capita", min = 0, max = 1, step = 0.025, value = 0.2, width = '50%')
+
+```
+
+
+### Society Inputs  {data-height=75}
+
+```{r}
+# What table are you interested in?
+numericInput(inputId = "socCorrupt", label =  "Corruption index", min = 0, max = 1, step = 0.025, value = 0.2, width = '50%')
+numericInput(inputId = "socHappy", label =  "Happiness index", min = 0, max = 1, step = 0.025, value = 0.05, width = '50%')
+numericInput(inputId = "socGov", label =  "Government effectiveness", min = 0, max = 1, step =  0.025, value = 0.15, width = '50%')
+numericInput(inputId = "socConflict", label =  "Armed conflict", min = 0, max = 1, step = 0.025, value = 0.3, width = '50%')
+numericInput(inputId = "socHomicide", label =  "Homicide rate", min = 0, max = 1, step = 0.025, value = 0.3, width = '50%')
+
+```
+
+
+### Resources Inputs  {data-height=75}
+
+```{r}
+# What table are you interested in?
+numericInput(inputId = "resWater", label =  "Renewable freshwater", min = 0, max = 1, step = 0.025, value = 0.2, width = '50%')
+numericInput(inputId = "resLand", label =  "Arable land", min = 0, max = 1, step = 0.025, value = 0.3, width = '50%')
+numericInput(inputId = "resCereal", label =  "Cereal yield", min = 0, max = 1, step =  0.025, value = 0.2, width = '50%')
+numericInput(inputId = "resOil", label =  "Oil stockpile", min = 0, max = 1, step = 0.025, value = 0.2, width = '50%')
+numericInput(inputId = "resElectric", label =  "Access to electricity (%of pop)- inverse weighted", min = 0, max = 1, step = 0.025, value = 0.1, width = '50%')
+numericInput(inputId = "resRenewElectric", label =  "Electricity production from renewable resources", min = 0, max = 1, step = 0.025, value = 0.2, width = '50%')
+
+```
+
+Choose your own ZPI Map
+=====================================
+
+### Output: Choose your own ZPI  {data-height=850}
+
+```{r}
+
+renderPlotly({
+valDefenseSubindex <- as.numeric(input$defense) # 0.9
+valIsolationSubindex <- as.numeric(input$isolation) # 0.235
+valHealthSubindex <- as.numeric(input$health) #0.50
+valSocietySubindex <- as.numeric(input$society) #0.29
+valResourcesSubindex <- as.numeric(input$resources) #0.07
+
+subIndexWts <- c(valDefenseSubindex,valIsolationSubindex, valHealthSubindex, valSocietySubindex, valResourcesSubindex)
+#subIndexWts <- rep(0.2,5)
+
+## sub-indicators
+
+## Defense
+val_defSpending <- as.numeric(input$defSpending) #1
+val_defProfMilt <- as.numeric(input$defProfMilt) #0.90
+val_defArms <- as.numeric(input$defArms) #1.0
+val_defPop <- as.numeric(input$defPop) #0.7
+val_defOlympics <- as.numeric(input$defOlympics) #1.0
+
+## Isolation
+val_isoTerrain <- as.numeric(input$isoTerrain) #1
+val_isoIndex <- as.numeric(input$isoIndex) #1
+val_isoPop <- as.numeric(input$isoPop) #1
+val_isoManu <- as.numeric(input$isoManu) #1
+
+
+## Health
+val_healthFitness <- as.numeric(input$healthFitness) #1
+val_healthDev <- as.numeric(input$healthDev) #1
+val_healthSpend <- as.numeric(input$healthSpend) #1
+val_healthEdu <- as.numeric(input$healthEdu) #1
+val_healthDoc <- as.numeric(input$healthDoc) #1
+
+
+## Society
+val_socCorrupt <- as.numeric(input$socCorrupt) #1
+val_socHappy <- as.numeric(input$socHappy) #1
+val_socGov <- as.numeric(input$socGov) #1
+val_socConflict <- as.numeric(input$socConflict) #1
+val_socHomicide <- as.numeric(input$socHomicide) #1
+
+
+## Resources
+val_resWater <- as.numeric(input$resWater) #1
+val_resLand <- as.numeric(input$resLand)
+val_resCereal <- as.numeric(input$resCereal)
+val_resOil <- as.numeric(input$resOil)
+val_resElectric <- as.numeric(input$resElectric)
+val_resRenewElectric <- as.numeric(input$resRenewElectric)
+
+#indicatorsWts <- c(rep(0.2, 25))
+#5
+#4
+#5
+#5
+#6
+
+# combine
+indicatorsWts <- c(val_defSpending, val_defProfMilt, val_defArms, val_defPop, val_defOlympics,
+                   val_isoTerrain, val_isoIndex, val_isoPop, val_isoManu,
+                   val_healthFitness, val_healthDev, val_healthSpend, val_healthEdu, val_healthDoc,
+                   val_socCorrupt, val_socHappy, val_socGov, val_socConflict, val_socHomicide,
+                   val_resWater, val_resLand, val_resCereal, val_resOil, val_resElectric, val_resRenewElectric
+                   )
+
+
+defenseWts <- indicatorsWts[1:5]*subIndexWts[1]
+isoWts <- indicatorsWts[6:9]*subIndexWts[2]
+healthWts <- indicatorsWts[10:14]*subIndexWts[3]
+societyWts <- indicatorsWts[15:19]*subIndexWts[4]
+resourcesWts <-indicatorsWts[20:25]*subIndexWts[5]
+
+combinedWts <- c(defenseWts, isoWts, societyWts, healthWts, resourcesWts)
+
+
+finalDat <- zpiFinal[,.(ISO2)]
+
+## reorder columns - if not already done on line 360
+zpiFinal1 <- zpiFinal[,c(27:33, 53, 35:51), with = FALSE]
+
+
+cols <- c("latest_DefSpend_std", "latest_DefSoldiers_std", "latest_DefSmallArms_std",
+"latest_DefUnAge_std", "latest_DefOlympics_std", "latest_IsoRugged_std",
+"latest_IsoInsularity_std", "latest_IsoPopDens_std", "latest_IsoManufacture_std",
+"latest_HealthObesity_std", "latest_HealthRnd_std", "latest_HealthHspend_std",
+"latest_HealthEdu_std", "latest_HealthDoc_std", "latest_SocietyCorruption_std",
+"latest_SocietyHappiness_std", "latest_SocietyGovEff_std", "latest_SocietyConflict_std",
+"latest_SocietyHomicide_std", "latest_ResourcesWater_std", "latest_ResourcesHectacres_std",
+"latest_ResourcesCerealProduction_std", "latest_ResourcesOil_std",
+"latest_ResourcesElectricity_std", "latest_ResourcesRenewable_std"
+)
+
+scoreCols <- paste0(cols, "_score")
+scoreCols <- gsub(pattern = "_std", replacement = "",x = scoreCols)
+counter <- 1:25
+
+for (i in seq_along(counter)) {
+  count <- counter[i]
+  #count <- 1
+  print(count)
+  print(i)
+  finalDat <- cbind(finalDat, zpiFinal1[,count, with = FALSE]*combinedWts[i])
+}  
+
+## Viral pneumonia branch
+setnames(finalDat, old = names(finalDat), new = c("ISO2",scoreCols))
+#setnames(finalDat, old = latest_IsoLandBorder_score, new = latest_IsoPopDens_score)
+
+finalDat[, allSum := rowSums(.SD), .SDcols = 2:26][]
+
+#finalDat[order(-allSum)]
+
+finalDat$allSum_std <- standardize(finalDat$allSum)
+
+finalDat[iso3iso2, iso3 := i.ISO3, on = .(ISO2)]
+finalDat[iso3iso2, ISO3 := i.ISO3, on = .(ISO2)]
+
+# Add North Korea
+finalDat_Plot <- rbind(finalDat, data.table(ISO3 = "PRK", allSum_std = 0), fill = TRUE)
+
+plotDat <- iso3iso2[ISO3 != "GRL", .(ISO3,ISO2)]
+plotDat[finalDat, allSum_std := i.allSum_std, on = .(ISO2)]
+plotDat[is.na(allSum_std), allSum_std := 0]
+
+plotDat[, allSum_Rank := frank(-allSum_std, ties.method = "first")]
+
+#Sys.setenv("plotly_username" = "IT_Support")
+#Sys.setenv("plotly_api_key" = "9K6aVQAbwlWh2y4hcTzl")
+
+plotDat[, allSum_std := allSum_std* 100]
+
+p <- plot_geo(plotDat,showscale = TRUE) %>%
+  add_trace(
+    z = ~allSum_std, color = ~allSum_std, colors = 'Reds',
+    text = ~ISO3, locations = ~ISO3, marker = list(line = l)
+  ) %>%
+  colorbar(title = 'ZPI Score', len = 0.5) %>%
+  layout(
+    geo = g
+  )
+
+p
+
+})
+```
+
+
+Choose your own ZPI Table
+=====================================
+```{r}
+renderDataTable({
+# Check requirements
+valDefenseSubindex <- as.numeric(input$defense) # 0.9
+valIsolationSubindex <- as.numeric(input$isolation) # 0.235
+valHealthSubindex <- as.numeric(input$health) #0.50
+valSocietySubindex <- as.numeric(input$society) #0.29
+valResourcesSubindex <- as.numeric(input$resources) #0.07
+
+subIndexWts <- c(valDefenseSubindex,valIsolationSubindex, valHealthSubindex, valSocietySubindex, valResourcesSubindex)
+#subIndexWts <- rep(0.2,5)
+
+## sub-indicators
+
+## Defense
+val_defSpending <- as.numeric(input$defSpending) #1
+val_defProfMilt <- as.numeric(input$defProfMilt) #0.90
+val_defArms <- as.numeric(input$defArms) #1.0
+val_defPop <- as.numeric(input$defPop) #0.7
+val_defOlympics <- as.numeric(input$defOlympics) #1.0
+
+## Isolation
+val_isoTerrain <- as.numeric(input$isoTerrain) #1
+val_isoIndex <- as.numeric(input$isoIndex) #1
+val_isoPop <- as.numeric(input$isoPop) #1
+val_isoManu <- as.numeric(input$isoManu) #1
+
+
+## Health
+val_healthFitness <- as.numeric(input$healthFitness) #1
+val_healthDev <- as.numeric(input$healthDev) #1
+val_healthSpend <- as.numeric(input$healthSpend) #1
+val_healthEdu <- as.numeric(input$healthEdu) #1
+val_healthDoc <- as.numeric(input$healthDoc) #1
+
+
+## Society
+val_socCorrupt <- as.numeric(input$socCorrupt) #1
+val_socHappy <- as.numeric(input$socHappy) #1
+val_socGov <- as.numeric(input$socGov) #1
+val_socConflict <- as.numeric(input$socConflict) #1
+val_socHomicide <- as.numeric(input$socHomicide) #1
+
+
+## Resources
+val_resWater <- as.numeric(input$resWater) #1
+val_resLand <- as.numeric(input$resLand)
+val_resCereal <- as.numeric(input$resCereal)
+val_resOil <- as.numeric(input$resOil)
+val_resElectric <- as.numeric(input$resElectric)
+val_resRenewElectric <- as.numeric(input$resRenewElectric)
+
+#indicatorsWts <- c(rep(0.2, 25))
+#5
+#4
+#5
+#5
+#6
+
+# combine
+indicatorsWts <- c(val_defSpending, val_defProfMilt, val_defArms, val_defPop, val_defOlympics,
+                   val_isoTerrain, val_isoIndex, val_isoPop, val_isoManu,
+                   val_healthFitness, val_healthDev, val_healthSpend, val_healthEdu, val_healthDoc,
+                   val_socCorrupt, val_socHappy, val_socGov, val_socConflict, val_socHomicide,
+                   val_resWater, val_resLand, val_resCereal, val_resOil, val_resElectric, val_resRenewElectric
+                   )
+
+
+defenseWts <- indicatorsWts[1:5]*subIndexWts[1]
+isoWts <- indicatorsWts[6:9]*subIndexWts[2]
+healthWts <- indicatorsWts[10:14]*subIndexWts[3]
+societyWts <- indicatorsWts[15:19]*subIndexWts[4]
+resourcesWts <-indicatorsWts[20:25]*subIndexWts[5]
+
+combinedWts <- c(defenseWts, isoWts, societyWts, healthWts, resourcesWts)
+
+
+finalDat <- zpiFinal[,.(ISO2)]
+
+## reorder columns - if not already done on line 360
+zpiFinal1 <- zpiFinal[,c(27:33, 53, 35:51), with = FALSE]
+
+
+cols <- c("latest_DefSpend_std", "latest_DefSoldiers_std", "latest_DefSmallArms_std",
+"latest_DefUnAge_std", "latest_DefOlympics_std", "latest_IsoRugged_std",
+"latest_IsoInsularity_std", "latest_IsoPopDens_std", "latest_IsoManufacture_std",
+"latest_HealthObesity_std", "latest_HealthRnd_std", "latest_HealthHspend_std",
+"latest_HealthEdu_std", "latest_HealthDoc_std", "latest_SocietyCorruption_std",
+"latest_SocietyHappiness_std", "latest_SocietyGovEff_std", "latest_SocietyConflict_std",
+"latest_SocietyHomicide_std", "latest_ResourcesWater_std", "latest_ResourcesHectacres_std",
+"latest_ResourcesCerealProduction_std", "latest_ResourcesOil_std",
+"latest_ResourcesElectricity_std", "latest_ResourcesRenewable_std"
+)
+
+scoreCols <- paste0(cols, "_score")
+scoreCols <- gsub(pattern = "_std", replacement = "",x = scoreCols)
+counter <- 1:25
+
+for (i in seq_along(counter)) {
+  count <- counter[i]
+  #count <- 1
+  print(count)
+  print(i)
+  finalDat <- cbind(finalDat, zpiFinal1[,count, with = FALSE]*combinedWts[i])
+}  
+
+## Viral pneumonia branch
+setnames(finalDat, old = names(finalDat), new = c("ISO2",scoreCols))
+#setnames(finalDat, old = latest_IsoLandBorder_score, new = latest_IsoPopDens_score)
+
+finalDat[, allSum := rowSums(.SD), .SDcols = 2:26][]
+
+#finalDat[order(-allSum)]
+
+finalDat$allSum_std <- standardize(finalDat$allSum)
+
+finalDat[iso3iso2, iso3 := i.ISO3, on = .(ISO2)]
+finalDat[iso3iso2, ISO3 := i.ISO3, on = .(ISO2)]
+
+ # Add North Korea
+finalDat_Plot <- rbind(finalDat, data.table(ISO3 = "PRK", allSum_std = 0), fill = TRUE)
+
+plotDat <- iso3iso2[ISO3 != "GRL", .(ISO3,ISO2)]
+plotDat[finalDat, allSum_std := i.allSum_std, on = .(ISO2)]
+plotDat[is.na(allSum_std), allSum_std := 0]
+
+plotDat[, allSum_Rank := frank(-allSum_std, ties.method = "first")]
+
+#Sys.setenv("plotly_username" = "IT_Support")
+#Sys.setenv("plotly_api_key" = "9K6aVQAbwlWh2y4hcTzl")
+
+plotDat[, allSum_std := allSum_std* 100]
+ 
+plotDat[NEUMappings, CountryName := i.CountryName, on = .(ISO2)]
+plotDat[, .(CountryName, ISO3, StandardScore = round(allSum_std,2), Rank = allSum_Rank)][order(Rank)]
+ 
+ 
+},options=list(pageLength = 35))
+```
+
+Instructions
+=====================================
+
+Several dimensions can predict how well a country can respond to a potential zombie apocalypse including the ability to eliminate zombies (defense), ability to create barriers and separate the living from the walking dead (isolation), ability to maintain health and find a potential cure (population health), ability to maintain civil society in the midst of flesh-eating humanoids (societal resilience), and resources to outlast the zombie threat (domestic resources).
+
+The end goal of this project is to rate and rank countries on their relative ability to control, isolate, and survive the next zombie apocalypse. To complete this important task, you will complete the following steps:
+
+**Step 1.** Within each sub-index (e.g., Defense, Isolation), score the relative importance of each data indicator in creating a metric which ranks countries on their ability to survive a zombie apocalypse. (Ensure they add up to 1!)
+
+**Step 2.** Rank the relative importance of each sub-index. (Ensure they add up to 1!)
+
+
+### **Defense**: Does the country have the defense capabilities to take down the walking dead? {data-width=100}
+
+**Defense spending per capita (World Bank)**:
+Proxy for military grade tools for zombie protection
+
+**Professional military per capita (World Bank)**:
+Easily translatable professional skills for zombie killing
+
+**Small Arms per capita (WaPo)**:
+More devices for humans to obtain and defense themselves against the walking dead
+
+**Population within fighting age -15-45- (UN Pop)**:
+Prime zombie fighting age
+
+**Olympic Medals in Archery, Shooting, Taekwondo (2008, 2012, 2016)**:
+Headshot accuracy and efficacy of weapons
+
+### **Isolation**: Does the country have characteristics amenable to isolate zombies? {data-width=100}
+**Terrain ruggedness (Princeton)**:
+Natural barriers to isolate zombies
+
+**Isolation index (UW.is)**:
+Dispersion of territory in islands and share of territory on island allows for "island jumping" to isolate and quarantine zombies
+
+**Population density (World Bank)**:
+[Modeling studies](https://sciencetrends.com/heres-survive-zombie-apocalypse-according-science/) have shown that areas with lower population density inherently have a greater probability of survival.
+
+**Manufacturing % GDP (World Bank)**:
+Increased capacity to build walls and other zombie barriers
+
+### **Society**: Is there adequate political stability and societal cohesiveness to manage the zombie response? {data-width=100}
+
+**Corruption (TI et al.)**:
+Higher corruption pre-zombie apocalypse predicts corruption and mayhem post-zombie apocalypse
+
+**Happiness (worldhappiness.org)**:
+Proxy for trust and cooperation among fellow compatriots
+
+**Government Effectiveness (World Bank)**:
+Populace has higher trust of societal organization which is helpful to organize into efficient zombie survival groups
+
+**Armed Conflict (Uppsala Conflict Data Program)**:
+Predictor of distrust of others during a zombie apocalypse
+
+**Homicide Rate (UN)**:
+Proxy for violent criminals and other unhelpful individuals
+
+### **Health**: Does the country have the population health characteristics to survive the living dead? {data-width=100}
+
+**Physical fitness (WHO)**:
+Smaller proportion of populace with high BMI indicates higher ability to run away from zombies
+
+**Research and development spending (World development indicators)**:
+More capacity to develop potential zombie cures or vaccines
+
+**Health spending per capita (WHO)**:
+Indicator for gross stockpile of medical resources including antibiotics
+
+**Primary education completion rate (UNESCO)**:
+Ability to read survival manuals
+
+**Physicians per capita (WHO)**:
+Persons to help treat twisted ankles and zombie bites
+
+### **Resources**: Does the country have the resources to outlast the zombies and sustain a self-sufficient society? {data-width=100}
+**Renewable internal freshwater resources per capita (World Bank)**:
+Water is life- ability to have a stable water supply
+
+**Hectacres of arable land per person (World Bank)**:
+Farm potential to feed the populace
+
+**Cereal yield per hectare (World Bank)**:
+Farm productivity
+
+**Remaining oil stockpile (CIA)**:
+Heat, electricity, car fuel
+
+**Access to electricity (% of population) (inverse weighted) (World Bank)**:
+Enable communication and resources to manage zombie threat
+
+**Electricity production from renewable sources (World Bank)**:
+Sustainable electricity generation, climate change
