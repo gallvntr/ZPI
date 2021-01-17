@@ -274,9 +274,6 @@ plotDat[is.na(allSum_std), allSum_std := 0]
 
 plotDat[, allSum_Rank := frank(-allSum_std, ties.method = "first")]
 
-#Sys.setenv("plotly_username" = "IT_Support")
-#Sys.setenv("plotly_api_key" = "9K6aVQAbwlWh2y4hcTzl")
-
 plotDat[, allSum_std := allSum_std* 100]
 
 p <- plot_geo(plotDat,showscale = TRUE) %>%
@@ -424,9 +421,6 @@ plotDat[finalDat, allSum_std := i.allSum_std, on = .(ISO2)]
 plotDat[is.na(allSum_std), allSum_std := 0]
 
 plotDat[, allSum_Rank := frank(-allSum_std, ties.method = "first")]
-
-#Sys.setenv("plotly_username" = "IT_Support")
-#Sys.setenv("plotly_api_key" = "9K6aVQAbwlWh2y4hcTzl")
 
 plotDat[, allSum_std := allSum_std* 100]
  
