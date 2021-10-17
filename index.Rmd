@@ -24,11 +24,6 @@ library(bit64)
 library(flexdashboard)
 library(shiny)
 
-#rsconnect::setAccountInfo(name='gallvntr',
-#                          token='E46897FA6F89EA455B242C8855CD1BB7',
-#                          secret='3tgzWI1IOgkwq59zjeYIujVTAV9IPYStUn6AfsbV')
-
-#library("rsconnect")
 #rsconnect::deployApp('/Users/markgallivan/Documents/shinyapps/zpi/', appName = "ZombiePreparednessIndex")
 
 #load("/home/mgallivan/shiny/zpi/data/finalDat.rda")
